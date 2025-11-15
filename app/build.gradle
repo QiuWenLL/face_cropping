@@ -28,6 +28,13 @@ android {
     }
 }
 
+
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+
 dependencies {
 
     implementation 'androidx.appcompat:appcompat:1.3.1'
@@ -37,6 +44,10 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
-    implementation project(':face_mlkit')
+    // 加上 ML Kit 人脸检测依赖（和封装库中一致）
+    implementation 'com.google.mlkit:face-detection:16.1.5'
+    // implementation project(':face_mlkit')
+    // 改为引用 AAR（名称是 aar 文件名去掉后缀）
+    implementation(name: 'face_mlkit-debug', ext: 'aar')
 
 }
