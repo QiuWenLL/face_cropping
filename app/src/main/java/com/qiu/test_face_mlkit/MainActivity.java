@@ -22,11 +22,10 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetector;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
+import com.qiu.face_mlkit.FaceCropper;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
         Button btnCapture = findViewById(R.id.btn_capture);
         Button btnRotate = findViewById(R.id.btn_rotate);
+        Button btnMirror = findViewById(R.id.btn_mirror);
         imgFace = findViewById(R.id.img_face);
 
         btnCapture.setOnClickListener(new View.OnClickListener() {
@@ -64,6 +64,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 rotateCurrentFace();
+            }
+        });
+
+        btnMirror.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mirrorCurrentFace();
             }
         });
     }
@@ -140,67 +147,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void detectFaceAndCrop(Bitmap bitmap) {
-        FaceDetectorOptions options =
-                new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
-                        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
-                        .build();
-
-        FaceDetector detector = FaceDetection.getClient(options);
-
-        InputImage image = InputImage.fromBitmap(bitmap, 0);
-
-        detector.process(image)
-                .addOnSuccessListener(new com.google.android.gms.tasks.OnSuccessListener<List<Face>>() {
+        Task<Bitmap> task = FaceCropper.cropHeadAndShoulders(bitmap);
+        task.addOnSuccessListener(new OnSuccessListener<Bitmap>() {
                     @Override
-                    public void onSuccess(List<Face> faces) {
-                        if (faces == null || faces.isEmpty()) {
-                            Toast.makeText(MainActivity.this, "未检测到人脸", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        Face face = faces.get(0);
-                        Rect box = face.getBoundingBox();
-
-                        // 在原始人脸框基础上放大，包含头和部分肩膀
-                        float expandRatioWidth = 0.4f;   // 左右各放大 40%
-                        float expandRatioHeight = 0.6f;  // 上下各放大 60%
-
-                        int centerX = box.centerX();
-                        int centerY = box.centerY();
-                        int faceWidth = box.width();
-                        int faceHeight = box.height();
-
-                        int newWidth = (int) (faceWidth * (1 + expandRatioWidth * 2));
-                        int newHeight = (int) (faceHeight * (1 + expandRatioHeight * 2));
-
-                        int left = centerX - newWidth / 2;
-                        int top = centerY - newHeight / 2;
-                        int right = centerX + newWidth / 2;
-                        int bottom = centerY + newHeight / 2;
-
-                        left = Math.max(0, left);
-                        top = Math.max(0, top);
-                        right = Math.min(bitmap.getWidth(), right);
-                        bottom = Math.min(bitmap.getHeight(), bottom);
-
-                        int width = right - left;
-                        int height = bottom - top;
-
-                        if (width <= 0 || height <= 0) {
-                            Toast.makeText(MainActivity.this, "人脸框无效", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        Bitmap faceBitmap = Bitmap.createBitmap(bitmap, left, top, width, height);
+                    public void onSuccess(Bitmap faceBitmap) {
                         currentFaceBitmap = faceBitmap;
                         imgFace.setImageBitmap(faceBitmap);
-
-                        // TODO: 如需对接门禁，这里可以将 faceBitmap 保存或上传
                     }
-                })
-                .addOnFailureListener(new com.google.android.gms.tasks.OnFailureListener() {
+                });
+
+        task.addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
                         Toast.makeText(MainActivity.this, "人脸检测失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -227,6 +183,27 @@ public class MainActivity extends AppCompatActivity {
 
         currentFaceBitmap = rotated;
         imgFace.setImageBitmap(rotated);
+    }
+
+    private void mirrorCurrentFace() {
+        if (currentFaceBitmap == null) {
+            Toast.makeText(this, "请先拍照并检测人脸", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        matrix.preScale(-1, 1); // 水平镜像
+
+        Bitmap mirrored = Bitmap.createBitmap(currentFaceBitmap,
+                0,
+                0,
+                currentFaceBitmap.getWidth(),
+                currentFaceBitmap.getHeight(),
+                matrix,
+                true);
+
+        currentFaceBitmap = mirrored;
+        imgFace.setImageBitmap(mirrored);
     }
 
     @Override
