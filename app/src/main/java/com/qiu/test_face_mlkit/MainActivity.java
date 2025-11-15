@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     private String currentPhotoPath;
     private ImageView imgFace;
+    private Bitmap currentFaceBitmap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,12 +50,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Button btnCapture = findViewById(R.id.btn_capture);
+        Button btnRotate = findViewById(R.id.btn_rotate);
         imgFace = findViewById(R.id.img_face);
 
         btnCapture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 checkPermissionAndOpenCamera();
+            }
+        });
+
+        btnRotate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                rotateCurrentFace();
             }
         });
     }
@@ -185,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                         Bitmap faceBitmap = Bitmap.createBitmap(bitmap, left, top, width, height);
+                        currentFaceBitmap = faceBitmap;
                         imgFace.setImageBitmap(faceBitmap);
 
                         // TODO: 如需对接门禁，这里可以将 faceBitmap 保存或上传
@@ -196,6 +206,27 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "人脸检测失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void rotateCurrentFace() {
+        if (currentFaceBitmap == null) {
+            Toast.makeText(this, "请先拍照并检测人脸", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        matrix.postRotate(90);
+
+        Bitmap rotated = Bitmap.createBitmap(currentFaceBitmap,
+                0,
+                0,
+                currentFaceBitmap.getWidth(),
+                currentFaceBitmap.getHeight(),
+                matrix,
+                true);
+
+        currentFaceBitmap = rotated;
+        imgFace.setImageBitmap(rotated);
     }
 
     @Override
